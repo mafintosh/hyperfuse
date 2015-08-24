@@ -1,5 +1,6 @@
 #define FUSE_USE_VERSION 29
-#define HYPEROS_GETATTR 1
+#define RFUSE_GETATTR 1
+#define RFUSE_READDIR 2
 
 #include <fuse.h>
 #include <fuse_opt.h>
@@ -25,7 +26,51 @@ typedef struct {
   void *result;
   char *buffer;
   uint32_t buffer_length;
+  fuse_fill_dir_t filler; // for readdir
 } rpc_t;
+
+inline static void rpc_parse_getattr (rpc_t *req, char *frame, uint32_t frame_len) {
+  uint32_t val_32;
+  struct stat *st = (struct stat *) req->result;
+  frame = read_uint32(frame, &val_32);
+  st->st_dev = val_32;
+  frame = read_uint32(frame, &val_32);
+  st->st_mode = val_32;
+  frame = read_uint32(frame, &val_32);
+  st->st_nlink = val_32;
+  frame = read_uint32(frame, &val_32);
+  st->st_uid = val_32;
+  frame = read_uint32(frame, &val_32);
+  st->st_gid = val_32;
+  frame = read_uint32(frame, &val_32);
+  st->st_rdev = val_32;
+  frame = read_uint32(frame, &val_32);
+  st->st_blksize = val_32;
+  frame = read_uint32(frame, &val_32);
+  st->st_ino = val_32;
+  frame = read_uint32(frame, &val_32);
+  st->st_size = val_32;
+  frame = read_uint32(frame, &val_32);
+  st->st_blocks = val_32;
+  frame = read_uint32(frame, &val_32);
+  st->st_atimespec.tv_sec = val_32;
+  frame = read_uint32(frame, &val_32);
+  st->st_mtimespec.tv_sec = val_32;
+  frame = read_uint32(frame, &val_32);
+  st->st_ctimespec.tv_sec = val_32;
+}
+
+inline static void rpc_parse_readdir (rpc_t *req, char *frame, uint32_t frame_len) {
+  uint16_t str_len;
+  char *str;
+  char *offset = frame;
+
+  while (frame - offset < frame_len) {
+    frame = read_string(frame, &str, &str_len);
+    req->filler(req->result, str, NULL, 0);
+    printf("readdir %s %u\n", str, frame_len);
+  }
+}
 
 inline static int rpc_request (rpc_t *req) {
   char *tmp = req->buffer;
@@ -52,54 +97,28 @@ inline static int rpc_request (rpc_t *req) {
   tmp = read_uint16(tmp, &recv_id);
   tmp = read_int32(tmp, &ret);
 
-  printf("frame_size is %u\n", frame_size);
-  printf("recv_id is %u\n", recv_id);
-  printf("return value is %u\n", ret);
+  printf("frame_size is %u, recv_id is %u, return value is %u\n", frame_size, recv_id, ret);
 
   id_map_free(&ids, send_id);
 
-  char rem[frame_size - 6];
+  frame_size -= 6;
+  char rem[frame_size];
   tmp = (char *) &rem;
-  if (socket_read(rpc_fd, tmp, frame_size - 6) < 0) return -1;
-
-  uint32_t val_32;
+  if (socket_read(rpc_fd, tmp, frame_size) < 0) return -1;
 
   if (ret < 0) return ret;
 
   switch (req->method) {
-    case HYPEROS_GETATTR: {
-      struct stat *st = (struct stat *) req->result;
-      tmp = read_uint32(tmp, &val_32);
-      st->st_dev = val_32;
-      tmp = read_uint32(tmp, &val_32);
-      st->st_mode = val_32;
-      tmp = read_uint32(tmp, &val_32);
-      st->st_nlink = val_32;
-      tmp = read_uint32(tmp, &val_32);
-      st->st_uid = val_32;
-      tmp = read_uint32(tmp, &val_32);
-      st->st_gid = val_32;
-      tmp = read_uint32(tmp, &val_32);
-      st->st_rdev = val_32;
-      tmp = read_uint32(tmp, &val_32);
-      st->st_blksize = val_32;
-      tmp = read_uint32(tmp, &val_32);
-      st->st_ino = val_32;
-      tmp = read_uint32(tmp, &val_32);
-      st->st_size = val_32;
-      tmp = read_uint32(tmp, &val_32);
-      st->st_blocks = val_32;
-      tmp = read_uint32(tmp, &val_32);
-      st->st_atimespec.tv_sec = val_32;
-      tmp = read_uint32(tmp, &val_32);
-      st->st_mtimespec.tv_sec = val_32;
-      tmp = read_uint32(tmp, &val_32);
-      st->st_ctimespec.tv_sec = val_32;
+    case RFUSE_GETATTR: {
+      rpc_parse_getattr(req, tmp, frame_size);
+      break;
+    }
+
+    case RFUSE_READDIR: {
+      rpc_parse_readdir(req, tmp, frame_size);
       break;
     }
   }
-
-  printf("her nu\n");
 
   return 0;
 }
@@ -115,7 +134,7 @@ static int hyperos_getattr (const char *path, struct stat *st) {
   char buf[buf_len];
 
   rpc_t req = {
-    .method = HYPEROS_GETATTR,
+    .method = RFUSE_GETATTR,
     .result = st,
     .buffer = buf,
     .buffer_length = buf_len
@@ -125,10 +144,24 @@ static int hyperos_getattr (const char *path, struct stat *st) {
   return rpc_request(&req);
 }
 
-static int hyperos_readdir (const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *info) {
-  struct stat empty_stat;
-  int ret = filler(buf, "test-test", &empty_stat, 0);
-  return 0;
+static int hyperos_readdir (const char *path, void *fuse_buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *info) {
+  // struct stat empty_stat;
+  // int ret = filler(buf, "test-test", &empty_stat, 0);
+
+  uint16_t path_len = strlen(path);
+  uint32_t buf_len = 7 + 2 + path_len;
+  char buf[buf_len];
+
+  rpc_t req = {
+    .method = RFUSE_READDIR,
+    .result = fuse_buf,
+    .buffer = buf,
+    .buffer_length = buf_len,
+    .filler = filler
+  };
+
+  write_string(buf + 7, (char *) path, path_len);
+  return rpc_request(&req);
 }
 
 int main (int argc, char **argv) {

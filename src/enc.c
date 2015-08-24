@@ -44,11 +44,13 @@ inline char *read_int32 (char *buf, int32_t *val) {
 inline char *write_string (char *buf, char *str, uint16_t str_len) {
   buf = write_uint16(buf, str_len);
   memcpy(buf, str, str_len);
-  return buf + str_len;
+  buf += str_len;
+  *buf = '\0';
+  return buf + 1;
 }
 
 inline char *read_string (char *buf, char **str, uint16_t *str_len) {
   buf = read_uint16(buf, str_len);
   *str = buf;
-  return buf + *str_len;
+  return buf + *str_len + 1;
 }

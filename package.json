@@ -1,0 +1,15 @@
+{
+  "name": "rfuse",
+  "version": "1.0.0",
+  "description": "Mount a fuse drive remotely over a network or stdio",
+  "main": "index.js",
+  "bin": {
+    "rfuse": "./rfuse"
+  },
+  "scripts": {
+    "install": "make",
+    "test": "make test"
+  },
+  "author": "Mathias Buus (@mafintosh)",
+  "license": "MIT"
+}

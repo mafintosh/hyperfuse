@@ -20,7 +20,8 @@
 
 #include <unistd.h>
 
-static int rpc_fd;
+static int rpc_fd_out;
+static int rpc_fd_in;
 static id_map_t ids;
 static struct stat mnt_st;
 
@@ -91,12 +92,12 @@ inline static int rpc_request (rpc_t *req) {
   tmp = write_uint8(tmp, req->method);
 
   // write request
-  if (socket_write(rpc_fd, req->buffer, req->buffer_length) < 0) return -1;
+  if (socket_write(rpc_fd_out, req->buffer, req->buffer_length) < 0) return -1;
 
   // read a response
   char header[10];
   tmp = (char *) &header;
-  if (socket_read(rpc_fd, tmp, 10) < 0) return -1;
+  if (socket_read(rpc_fd_in, tmp, 10) < 0) return -1;
 
   uint32_t frame_size;
   uint16_t recv_id;
@@ -115,7 +116,7 @@ inline static int rpc_request (rpc_t *req) {
   switch (req->method) {
     case RFUSE_READ: {
       if (frame_size) {
-        if (socket_read(rpc_fd, req->result, frame_size) < 0) return -1;
+        if (socket_read(rpc_fd_in, req->result, frame_size) < 0) return -1;
       }
       return ret;
     }
@@ -126,7 +127,7 @@ inline static int rpc_request (rpc_t *req) {
 
   char rem[frame_size];
   tmp = (char *) &rem;
-  if (socket_read(rpc_fd, tmp, frame_size) < 0) return -1;
+  if (socket_read(rpc_fd_in, tmp, frame_size) < 0) return -1;
 
   if (ret < 0) return ret;
 
@@ -243,17 +244,41 @@ static int rfuse_read (const char *path, char *fuse_buf, size_t len, off_t offse
   return rpc_request(&req);
 }
 
-int main (int argc, char **argv) {
-  char *mnt = "./mnt";
-  unmount(mnt, 0);
+static int connect (char *addr) {
+  if (!strcmp(addr, "-")) {
+    rpc_fd_in = 0;
+    rpc_fd_out = 1;
+    return 0;
+  }
 
+  int len = strlen(addr);
+  int colon = len;
+  for (int i = 0; i < len; i++) {
+    if (*(addr + i) == ':') colon = i;
+  }
+
+  *(addr + colon) = '\0';
+  int port = colon < len ? atoi(addr + colon + 1) : 10000;
+  rpc_fd_in = rpc_fd_out = socket_connect(port, strlen(addr) ? addr : NULL);
+  return rpc_fd_in;
+}
+
+int main (int argc, char **argv) {
+  if (argc < 3) {
+    printf("Usage: rfuse [mountpoint] [host:port]\n");
+    exit(1);
+  }
+
+  char *mnt = argv[1];
+  char *addr = argv[2];
+
+  unmount(mnt, 0);
   if (stat(mnt, &mnt_st) < 0) {
     printf("Mountpoint does not exist\n");
     return -1;
   }
 
-  rpc_fd = socket_connect(10000, NULL);
-  if (rpc_fd < 0) {
+  if (connect(addr) < 0) {
     printf("Could not connect to server\n");
     return -2;
   }
@@ -267,7 +292,7 @@ int main (int argc, char **argv) {
     .open = rfuse_open
   };
 
-  struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+  struct fuse_args args = FUSE_ARGS_INIT(argc - 2, argv + 2);
   struct fuse_chan *ch = fuse_mount(mnt, &args);
 
   if (ch == NULL) {

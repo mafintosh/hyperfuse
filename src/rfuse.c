@@ -1,6 +1,9 @@
 #define FUSE_USE_VERSION 29
 #define RFUSE_GETATTR 1
 #define RFUSE_READDIR 2
+#define RFUSE_READ 3
+#define RFUSE_OPEN 4
+#define RFUSE_TRUNCATE 5
 
 #include <fuse.h>
 #include <fuse_opt.h>
@@ -26,6 +29,7 @@ typedef struct {
   void *result;
   char *buffer;
   uint32_t buffer_length;
+  struct fuse_file_info *info;
   fuse_fill_dir_t filler; // for readdir
 } rpc_t;
 
@@ -68,8 +72,13 @@ inline static void rpc_parse_readdir (rpc_t *req, char *frame, uint32_t frame_le
   while (frame - offset < frame_len) {
     frame = read_string(frame, &str, &str_len);
     req->filler(req->result, str, NULL, 0);
-    printf("readdir %s %u\n", str, frame_len);
   }
+}
+
+inline static void rpc_parse_open (rpc_t *req, char *frame, uint32_t frame_len) {
+  uint16_t fd;
+  read_uint16(frame, &fd);
+  req->info->fh = fd;
 }
 
 inline static int rpc_request (rpc_t *req) {
@@ -102,6 +111,19 @@ inline static int rpc_request (rpc_t *req) {
   id_map_free(&ids, send_id);
 
   frame_size -= 6;
+
+  switch (req->method) {
+    case RFUSE_READ: {
+      if (frame_size) {
+        if (socket_read(rpc_fd, req->result, frame_size) < 0) return -1;
+      }
+      return ret;
+    }
+    case RFUSE_TRUNCATE: {
+      return ret;
+    }
+  }
+
   char rem[frame_size];
   tmp = (char *) &rem;
   if (socket_read(rpc_fd, tmp, frame_size) < 0) return -1;
@@ -118,19 +140,23 @@ inline static int rpc_request (rpc_t *req) {
       rpc_parse_readdir(req, tmp, frame_size);
       break;
     }
+
+    case RFUSE_OPEN: {
+      rpc_parse_open(req, tmp, frame_size);
+    }
   }
 
   return 0;
 }
 
-static int hyperos_getattr (const char *path, struct stat *st) {
+static int rfuse_getattr (const char *path, struct stat *st) {
   if (!strcmp(path, "/")) {
     memcpy(st, &mnt_st, sizeof(struct stat));
     return 0;
   }
 
   uint16_t path_len = strlen(path);
-  uint32_t buf_len = 7 + 2 + path_len;
+  uint32_t buf_len = 7 + 2 + path_len + 1;
   char buf[buf_len];
 
   rpc_t req = {
@@ -144,12 +170,9 @@ static int hyperos_getattr (const char *path, struct stat *st) {
   return rpc_request(&req);
 }
 
-static int hyperos_readdir (const char *path, void *fuse_buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *info) {
-  // struct stat empty_stat;
-  // int ret = filler(buf, "test-test", &empty_stat, 0);
-
+static int rfuse_readdir (const char *path, void *fuse_buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *info) {
   uint16_t path_len = strlen(path);
-  uint32_t buf_len = 7 + 2 + path_len;
+  uint32_t buf_len = 7 + 2 + path_len + 1;
   char buf[buf_len];
 
   rpc_t req = {
@@ -161,6 +184,62 @@ static int hyperos_readdir (const char *path, void *fuse_buf, fuse_fill_dir_t fi
   };
 
   write_string(buf + 7, (char *) path, path_len);
+  return rpc_request(&req);
+}
+
+static int rfuse_open (const char *path, struct fuse_file_info *info) {
+  uint16_t path_len = strlen(path);
+  uint32_t buf_len = 7 + 2 + path_len + 1 + 2;
+  char buf[buf_len];
+
+  rpc_t req = {
+    .method = RFUSE_OPEN,
+    .buffer = buf,
+    .buffer_length = buf_len,
+    .info = info
+  };
+
+  char *tmp = (char *) &buf;
+  tmp = write_string(tmp + 7, (char *) path, path_len);
+  tmp = write_uint16(tmp, info->flags);
+  return rpc_request(&req);
+}
+
+static int bindings_truncate (const char *path, off_t size) {
+  uint16_t path_len = strlen(path);
+  uint32_t buf_len = 7 + 2 + path_len + 1 + 4;
+  char buf[buf_len];
+
+  rpc_t req = {
+    .method = RFUSE_TRUNCATE,
+    .buffer = buf,
+    .buffer_length = buf_len
+  };
+
+  char *tmp = (char *) &buf;
+  tmp = write_string(tmp + 7, (char *) path, path_len);
+  tmp = write_uint32(tmp, size);
+  return rpc_request(&req);
+}
+
+static int rfuse_read (const char *path, char *fuse_buf, size_t len, off_t offset, struct fuse_file_info *info) {
+  uint16_t path_len = strlen(path);
+  uint32_t buf_len = 7 + 2 + path_len + 1 + 2 + 4 + 4;
+  char buf[buf_len];
+
+  rpc_t req = {
+    .method = RFUSE_READ,
+    .result = fuse_buf,
+    .buffer = buf,
+    .buffer_length = buf_len,
+    .info = info
+  };
+
+  char *tmp = (char *) &buf;
+  tmp = write_string(tmp + 7, (char *) path, path_len);
+  tmp = write_uint16(tmp, info->fh);
+  tmp = write_uint32(tmp, len);
+  tmp = write_uint32(tmp, offset);
   return rpc_request(&req);
 }
 
@@ -182,8 +261,10 @@ int main (int argc, char **argv) {
   id_map_init(&ids);
 
   struct fuse_operations ops = {
-    .readdir = hyperos_readdir,
-    .getattr = hyperos_getattr
+    .readdir = rfuse_readdir,
+    .getattr = rfuse_getattr,
+    .read = rfuse_read,
+    .open = rfuse_open
   };
 
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);

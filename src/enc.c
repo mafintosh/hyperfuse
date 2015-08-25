@@ -54,3 +54,8 @@ inline char *read_string (char *buf, char **str, uint16_t *str_len) {
   *str = buf;
   return buf + *str_len + 1;
 }
+
+inline char *write_buffer (char *buf, char *data, uint32_t data_len) {
+  memcpy(buf, data, data_len);
+  return buf + data_len;
+}

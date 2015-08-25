@@ -17,4 +17,6 @@ char *read_int32 (char *buf, int32_t *val);
 char *write_string (char *buf, char *str, uint16_t str_len);
 char *read_string (char *buf, char **str, uint16_t *str_len);
 
+char *write_buffer (char *buf, char *data, uint32_t data_len);
+
 #endif

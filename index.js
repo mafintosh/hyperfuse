@@ -6,8 +6,15 @@ module.exports = rfuse
 function rfuse (bindings) {
   var input = stream.PassThrough()
   var output = stream.PassThrough()
+  var remote = duplexify(input, output)
 
   loop()
+
+  function init (mnt, cb) {
+    remote.path = mnt
+    remote.emit('mount', mnt)
+    cb()
+  }
 
   function onmessage (buf) {
     var id = buf.readUInt16BE(0)
@@ -18,7 +25,7 @@ function rfuse (bindings) {
     var offset = 5 + pathLen + 1
 
     switch (method) {
-      case 0: return bindings.init(path, writeAck(output, id))
+      case 0: return init(path, writeAck(output, id))
       case 1: return bindings.getattr(path, writeStat(output, id))
       case 2: return bindings.readdir(path, writeDirs(output, id))
       case 3: return onread(buf, path, offset, id)
@@ -64,7 +71,7 @@ function rfuse (bindings) {
     })
   }
 
-  return duplexify(input, output)
+  return remote
 }
 
 function readString (buf, offset) {

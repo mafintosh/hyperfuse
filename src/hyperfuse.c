@@ -1,24 +1,24 @@
 #define FUSE_USE_VERSION 29
 
-#define RFUSE_INIT 0
-#define RFUSE_GETATTR 1
-#define RFUSE_READDIR 2
-#define RFUSE_READ 3
-#define RFUSE_OPEN 4
-#define RFUSE_TRUNCATE 5
-#define RFUSE_CREATE 6
-#define RFUSE_UNLINK 7
-#define RFUSE_WRITE 8
-#define RFUSE_CHMOD 9
-#define RFUSE_CHOWN 10
-#define RFUSE_RELEASE 11
-#define RFUSE_MKDIR 12
-#define RFUSE_RMDIR 13
-#define RFUSE_UTIMENS 14
-#define RFUSE_RENAME 15
-#define RFUSE_SYMLINK 16
-#define RFUSE_READLINK 17
-#define RFUSE_LINK 18
+#define HYPERFUSE_INIT 0
+#define HYPERFUSE_GETATTR 1
+#define HYPERFUSE_READDIR 2
+#define HYPERFUSE_READ 3
+#define HYPERFUSE_OPEN 4
+#define HYPERFUSE_TRUNCATE 5
+#define HYPERFUSE_CREATE 6
+#define HYPERFUSE_UNLINK 7
+#define HYPERFUSE_WRITE 8
+#define HYPERFUSE_CHMOD 9
+#define HYPERFUSE_CHOWN 10
+#define HYPERFUSE_RELEASE 11
+#define HYPERFUSE_MKDIR 12
+#define HYPERFUSE_RMDIR 13
+#define HYPERFUSE_UTIMENS 14
+#define HYPERFUSE_RENAME 15
+#define HYPERFUSE_SYMLINK 16
+#define HYPERFUSE_READLINK 17
+#define HYPERFUSE_LINK 18
 
 #define WITH_PATH(path, len) \
   uint16_t path_len = strlen(path); \
@@ -144,23 +144,23 @@ inline static int rpc_request (rpc_t *req) {
   frame_size -= 6;
 
   switch (req->method) {
-    case RFUSE_READ: {
+    case HYPERFUSE_READ: {
       if (frame_size) {
         if (socket_read(rpc_fd_in, req->result, frame_size) < 0) return -1;
       }
       return ret;
     }
-    case RFUSE_SYMLINK:
-    case RFUSE_RENAME:
-    case RFUSE_UTIMENS:
-    case RFUSE_RMDIR:
-    case RFUSE_MKDIR:
-    case RFUSE_RELEASE:
-    case RFUSE_CHOWN:
-    case RFUSE_CHMOD:
-    case RFUSE_WRITE:
-    case RFUSE_UNLINK:
-    case RFUSE_TRUNCATE: {
+    case HYPERFUSE_SYMLINK:
+    case HYPERFUSE_RENAME:
+    case HYPERFUSE_UTIMENS:
+    case HYPERFUSE_RMDIR:
+    case HYPERFUSE_MKDIR:
+    case HYPERFUSE_RELEASE:
+    case HYPERFUSE_CHOWN:
+    case HYPERFUSE_CHMOD:
+    case HYPERFUSE_WRITE:
+    case HYPERFUSE_UNLINK:
+    case HYPERFUSE_TRUNCATE: {
       return ret;
     }
   }
@@ -172,23 +172,23 @@ inline static int rpc_request (rpc_t *req) {
   if (ret < 0) return ret;
 
   switch (req->method) {
-    case RFUSE_GETATTR: {
+    case HYPERFUSE_GETATTR: {
       rpc_parse_getattr(req, tmp, frame_size);
       break;
     }
 
-    case RFUSE_READDIR: {
+    case HYPERFUSE_READDIR: {
       rpc_parse_readdir(req, tmp, frame_size);
       break;
     }
 
-    case RFUSE_READLINK: {
+    case HYPERFUSE_READLINK: {
       rpc_parse_readlink(req, tmp, frame_size);
       break;
     }
 
-    case RFUSE_CREATE:
-    case RFUSE_OPEN: {
+    case HYPERFUSE_CREATE:
+    case HYPERFUSE_OPEN: {
       rpc_parse_fd(req, tmp, frame_size);
     }
   }
@@ -196,11 +196,11 @@ inline static int rpc_request (rpc_t *req) {
   return 0;
 }
 
-static void* rfuse_init (struct fuse_conn_info *conn) {
+static void* hyperfuse_init (struct fuse_conn_info *conn) {
   WITH_PATH(mnt, 0);
 
   rpc_t req = {
-    .method = RFUSE_INIT,
+    .method = HYPERFUSE_INIT,
     .buffer = buf,
     .buffer_length = buf_len
   };
@@ -209,7 +209,7 @@ static void* rfuse_init (struct fuse_conn_info *conn) {
   return NULL;
 }
 
-static int rfuse_getattr (const char *path, struct stat *st) {
+static int hyperfuse_getattr (const char *path, struct stat *st) {
   if (!strcmp(path, "/")) {
     memcpy(st, &mnt_st, sizeof(struct stat));
     return 0;
@@ -218,7 +218,7 @@ static int rfuse_getattr (const char *path, struct stat *st) {
   WITH_PATH(path, 0);
 
   rpc_t req = {
-    .method = RFUSE_GETATTR,
+    .method = HYPERFUSE_GETATTR,
     .result = st,
     .buffer = buf,
     .buffer_length = buf_len
@@ -227,11 +227,11 @@ static int rfuse_getattr (const char *path, struct stat *st) {
   return rpc_request(&req);
 }
 
-static int rfuse_readdir (const char *path, void *fuse_buf, fuse_fill_dir_t filler, off_t pos, struct fuse_file_info *info) {
+static int hyperfuse_readdir (const char *path, void *fuse_buf, fuse_fill_dir_t filler, off_t pos, struct fuse_file_info *info) {
   WITH_PATH(path, 0);
 
   rpc_t req = {
-    .method = RFUSE_READDIR,
+    .method = HYPERFUSE_READDIR,
     .result = fuse_buf,
     .buffer = buf,
     .buffer_length = buf_len,
@@ -241,11 +241,11 @@ static int rfuse_readdir (const char *path, void *fuse_buf, fuse_fill_dir_t fill
   return rpc_request(&req);
 }
 
-static int rfuse_open (const char *path, struct fuse_file_info *info) {
+static int hyperfuse_open (const char *path, struct fuse_file_info *info) {
   WITH_PATH(path, 2);
 
   rpc_t req = {
-    .method = RFUSE_OPEN,
+    .method = HYPERFUSE_OPEN,
     .buffer = buf,
     .buffer_length = buf_len,
     .info = info
@@ -255,11 +255,11 @@ static int rfuse_open (const char *path, struct fuse_file_info *info) {
   return rpc_request(&req);
 }
 
-static int rfuse_truncate (const char *path, off_t size) {
+static int hyperfuse_truncate (const char *path, off_t size) {
   WITH_PATH(path, 4);
 
   rpc_t req = {
-    .method = RFUSE_TRUNCATE,
+    .method = HYPERFUSE_TRUNCATE,
     .buffer = buf,
     .buffer_length = buf_len
   };
@@ -268,11 +268,11 @@ static int rfuse_truncate (const char *path, off_t size) {
   return rpc_request(&req);
 }
 
-static int rfuse_write (const char *path, const char *fuse_buf, size_t len, off_t pos, struct fuse_file_info *info) {
+static int hyperfuse_write (const char *path, const char *fuse_buf, size_t len, off_t pos, struct fuse_file_info *info) {
   WITH_PATH(path, 2 + 4 + len);
 
   rpc_t req = {
-    .method = RFUSE_WRITE,
+    .method = HYPERFUSE_WRITE,
     .buffer = buf,
     .buffer_length = buf_len
   };
@@ -283,11 +283,11 @@ static int rfuse_write (const char *path, const char *fuse_buf, size_t len, off_
   return rpc_request(&req);
 }
 
-static int rfuse_read (const char *path, char *fuse_buf, size_t len, off_t pos, struct fuse_file_info *info) {
+static int hyperfuse_read (const char *path, char *fuse_buf, size_t len, off_t pos, struct fuse_file_info *info) {
   WITH_PATH(path, 2 + 4 + len);
 
   rpc_t req = {
-    .method = RFUSE_READ,
+    .method = HYPERFUSE_READ,
     .result = fuse_buf,
     .buffer = buf,
     .buffer_length = buf_len
@@ -299,11 +299,11 @@ static int rfuse_read (const char *path, char *fuse_buf, size_t len, off_t pos, 
   return rpc_request(&req);
 }
 
-static int rfuse_create (const char *path, mode_t mode, struct fuse_file_info *info) {
+static int hyperfuse_create (const char *path, mode_t mode, struct fuse_file_info *info) {
   WITH_PATH(path, 2);
 
   rpc_t req = {
-    .method = RFUSE_CREATE,
+    .method = HYPERFUSE_CREATE,
     .buffer = buf,
     .buffer_length = buf_len,
     .info = info
@@ -313,11 +313,11 @@ static int rfuse_create (const char *path, mode_t mode, struct fuse_file_info *i
   return rpc_request(&req);
 }
 
-static int rfuse_unlink (const char *path) {
+static int hyperfuse_unlink (const char *path) {
   WITH_PATH(path, 0);
 
   rpc_t req = {
-    .method = RFUSE_UNLINK,
+    .method = HYPERFUSE_UNLINK,
     .buffer = buf,
     .buffer_length = buf_len
   };
@@ -325,11 +325,11 @@ static int rfuse_unlink (const char *path) {
   return rpc_request(&req);
 }
 
-static int rfuse_chmod (const char *path, mode_t mode) {
+static int hyperfuse_chmod (const char *path, mode_t mode) {
   WITH_PATH(path, 2);
 
   rpc_t req = {
-    .method = RFUSE_CHMOD,
+    .method = HYPERFUSE_CHMOD,
     .buffer = buf,
     .buffer_length = buf_len
   };
@@ -338,11 +338,11 @@ static int rfuse_chmod (const char *path, mode_t mode) {
   return rpc_request(&req);
 }
 
-static int rfuse_chown (const char *path, uid_t uid, gid_t gid) {
+static int hyperfuse_chown (const char *path, uid_t uid, gid_t gid) {
   WITH_PATH(path, 2 + 2);
 
   rpc_t req = {
-    .method = RFUSE_CHOWN,
+    .method = HYPERFUSE_CHOWN,
     .buffer = buf,
     .buffer_length = buf_len
   };
@@ -352,11 +352,11 @@ static int rfuse_chown (const char *path, uid_t uid, gid_t gid) {
   return rpc_request(&req);
 }
 
-static int rfuse_release (const char *path, struct fuse_file_info *info) {
+static int hyperfuse_release (const char *path, struct fuse_file_info *info) {
   WITH_PATH(path, 2);
 
   rpc_t req = {
-    .method = RFUSE_RELEASE,
+    .method = HYPERFUSE_RELEASE,
     .buffer = buf,
     .buffer_length = buf_len
   };
@@ -365,11 +365,11 @@ static int rfuse_release (const char *path, struct fuse_file_info *info) {
   return rpc_request(&req);
 }
 
-static int rfuse_mkdir (const char *path, mode_t mode) {
+static int hyperfuse_mkdir (const char *path, mode_t mode) {
   WITH_PATH(path, 2);
 
   rpc_t req = {
-    .method = RFUSE_MKDIR,
+    .method = HYPERFUSE_MKDIR,
     .buffer = buf,
     .buffer_length = buf_len
   };
@@ -378,11 +378,11 @@ static int rfuse_mkdir (const char *path, mode_t mode) {
   return rpc_request(&req);
 }
 
-static int rfuse_rmdir (const char *path) {
+static int hyperfuse_rmdir (const char *path) {
   WITH_PATH(path, 0);
 
   rpc_t req = {
-    .method = RFUSE_RMDIR,
+    .method = HYPERFUSE_RMDIR,
     .buffer = buf,
     .buffer_length = buf_len
   };
@@ -394,11 +394,11 @@ static uint32_t get_secs (const struct timespec *tv) {
   return tv->tv_sec;
 }
 
-static int rfuse_utimens (const char *path, const struct timespec tv[2]) {
+static int hyperfuse_utimens (const char *path, const struct timespec tv[2]) {
   WITH_PATH(path, 4 + 4);
 
   rpc_t req = {
-    .method = RFUSE_UTIMENS,
+    .method = HYPERFUSE_UTIMENS,
     .buffer = buf,
     .buffer_length = buf_len
   };
@@ -408,12 +408,12 @@ static int rfuse_utimens (const char *path, const struct timespec tv[2]) {
   return rpc_request(&req);
 }
 
-static int rfuse_rename (const char *path, const char *dst) {
+static int hyperfuse_rename (const char *path, const char *dst) {
   uint16_t dst_len = strlen(dst);
   WITH_PATH(path, 2 + dst_len + 1);
 
   rpc_t req = {
-    .method = RFUSE_RENAME,
+    .method = HYPERFUSE_RENAME,
     .buffer = buf,
     .buffer_length = buf_len
   };
@@ -422,12 +422,12 @@ static int rfuse_rename (const char *path, const char *dst) {
   return rpc_request(&req);
 }
 
-static int rfuse_symlink (const char *path, const char *link) {
+static int hyperfuse_symlink (const char *path, const char *link) {
   uint16_t link_len = strlen(link);
   WITH_PATH(path, 2 + link_len + 1);
 
   rpc_t req = {
-    .method = RFUSE_SYMLINK,
+    .method = HYPERFUSE_SYMLINK,
     .buffer = buf,
     .buffer_length = buf_len
   };
@@ -436,11 +436,11 @@ static int rfuse_symlink (const char *path, const char *link) {
   return rpc_request(&req);
 }
 
-static int rfuse_readlink (const char *path, char *fuse_buf, size_t len) {
+static int hyperfuse_readlink (const char *path, char *fuse_buf, size_t len) {
   WITH_PATH(path, 0);
 
   rpc_t req = {
-    .method = RFUSE_READLINK,
+    .method = HYPERFUSE_READLINK,
     .result = fuse_buf,
     .buffer = buf,
     .buffer_length = buf_len
@@ -449,12 +449,12 @@ static int rfuse_readlink (const char *path, char *fuse_buf, size_t len) {
   return rpc_request(&req);
 }
 
-static int rfuse_link (const char *path, const char *link) {
+static int hyperfuse_link (const char *path, const char *link) {
   uint16_t link_len = strlen(link);
   WITH_PATH(path, 2 + link_len + 1);
 
   rpc_t req = {
-    .method = RFUSE_LINK,
+    .method = HYPERFUSE_LINK,
     .buffer = buf,
     .buffer_length = buf_len
   };
@@ -485,7 +485,7 @@ static int connect (char *addr) {
 
 int main (int argc, char **argv) {
   if (argc < 3) {
-    fprintf(stderr, "Usage: rfuse [mountpoint] [host:port]\n");
+    fprintf(stderr, "Usage: hyperfuse [mountpoint] [host:port]\n");
     exit(1);
   }
 
@@ -506,25 +506,25 @@ int main (int argc, char **argv) {
   id_map_init(&ids);
 
   struct fuse_operations ops = {
-    .init = rfuse_init,
-    .readdir = rfuse_readdir,
-    .getattr = rfuse_getattr,
-    .read = rfuse_read,
-    .open = rfuse_open,
-    .truncate = rfuse_truncate,
-    .create = rfuse_create,
-    .unlink = rfuse_unlink,
-    .write = rfuse_write,
-    .chmod = rfuse_chmod,
-    .chown = rfuse_chown,
-    .release = rfuse_release,
-    .mkdir = rfuse_mkdir,
-    .rmdir = rfuse_rmdir,
-    .utimens = rfuse_utimens,
-    .rename = rfuse_rename,
-    .symlink = rfuse_symlink,
-    .readlink = rfuse_readlink,
-    .link = rfuse_link
+    .init = hyperfuse_init,
+    .readdir = hyperfuse_readdir,
+    .getattr = hyperfuse_getattr,
+    .read = hyperfuse_read,
+    .open = hyperfuse_open,
+    .truncate = hyperfuse_truncate,
+    .create = hyperfuse_create,
+    .unlink = hyperfuse_unlink,
+    .write = hyperfuse_write,
+    .chmod = hyperfuse_chmod,
+    .chown = hyperfuse_chown,
+    .release = hyperfuse_release,
+    .mkdir = hyperfuse_mkdir,
+    .rmdir = hyperfuse_rmdir,
+    .utimens = hyperfuse_utimens,
+    .rename = hyperfuse_rename,
+    .symlink = hyperfuse_symlink,
+    .readlink = hyperfuse_readlink,
+    .link = hyperfuse_link
   };
 
   struct fuse_args args = FUSE_ARGS_INIT(argc - 2, argv + 2);

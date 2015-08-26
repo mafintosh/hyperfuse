@@ -1,4 +1,4 @@
-# rfuse
+# hyperfuse
 
 Mount a fuse drive remotely over a network or stdio
 

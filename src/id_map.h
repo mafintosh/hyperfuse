@@ -1,5 +1,5 @@
-#ifndef _RFUSE_ID_MAP_H_
-#define _RFUSE_ID_MAP_H_
+#ifndef _HYPERFUSE_ID_MAP_H_
+#define _HYPERFUSE_ID_MAP_H_
 
 #include <stdlib.h>
 

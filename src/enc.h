@@ -1,5 +1,5 @@
-#ifndef _RFUSE_ENC_H_
-#define _RFUSE_ENC_H_
+#ifndef _HYPERFUSE_ENC_H_
+#define _HYPERFUSE_ENC_H_
 
 #include <stdlib.h>
 

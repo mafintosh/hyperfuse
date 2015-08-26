@@ -1,5 +1,5 @@
-#ifndef _RFUSE_SOCKET_H_
-#define _RFUSE_SOCKET_H_
+#ifndef _HYPERFUSE_SOCKET_H_
+#define _HYPERFUSE_SOCKET_H_
 
 int socket_connect (int port, char* host);
 int socket_read (int fd, char *buf, int length);

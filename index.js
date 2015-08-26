@@ -18,66 +18,41 @@ function rfuse (bindings) {
     var offset = 5 + pathLen + 1
 
     switch (method) {
-      case 1:
-        bindings.getattr(path, writeStat(output, id))
-        break
-
-      case 2:
-        bindings.readdir(path, writeDirs(output, id))
-        break
-
-      case 3:
-        var fd = buf.readUInt16BE(offset)
-        var len = buf.readUInt32BE(offset + 2)
-        var pos = buf.readUInt32BE(offset + 6)
-        var result = new Buffer(10 + len) // TODO: reuse buffers
-        bindings.read(path, fd, result.slice(10), len, pos, writeRead(output, id, result))
-        break
-
-      case 4:
-        bindings.open(path, buf.readUInt16BE(offset), writeFd(output, id))
-        break
-
-      case 5:
-        bindings.truncate(path, buf.readUInt32BE(offset), writeAck(output, id))
-        break
-
-      case 6:
-        bindings.create(path, buf.readUInt16BE(offset), writeFd(output, id))
-        break
-
-      case 7:
-        bindings.unlink(path, writeAck(output, id))
-        break
-
-      case 8:
-        var fd = buf.readUInt16BE(offset)
-        var pos = buf.readUInt32BE(offset + 2)
-        var writes = buf.slice(offset + 6)
-        bindings.write(path, fd, writes, writes.length, pos, writeWrite(output, id))
-        break
-
-      case 9:
-        var mode = buf.readUInt16BE(offset)
-        bindings.chmod(path, mode, writeAck(output, id))
-        break
-
-      case 10:
-        var uid = buf.readUInt16BE(offset)
-        var gid = buf.readUInt16BE(offset + 2)
-        bindings.chown(path, uid, gid, writeAck(output, id))
-        break
-
-      case 11:
-        var fd = buf.readUInt16BE(offset)
-        bindings.release(path, fd, writeAck(output, id))
-        break
-
-      case 12:
-        var mode = buf.readUInt16BE(offset)
-        bindings.mkdir(path, mode, writeAck(output, id))
-        break
+      case 0: return bindings.init(path, writeAck(output, id))
+      case 1: return bindings.getattr(path, writeStat(output, id))
+      case 2: return bindings.readdir(path, writeDirs(output, id))
+      case 3: return onread(buf, path, offset, id)
+      case 4: return bindings.open(path, buf.readUInt16BE(offset), writeFd(output, id))
+      case 5: return bindings.truncate(path, buf.readUInt32BE(offset), writeAck(output, id))
+      case 6: return bindings.create(path, buf.readUInt16BE(offset), writeFd(output, id))
+      case 7: return bindings.unlink(path, writeAck(output, id))
+      case 8: return onwrite(buf, path, offset, id)
+      case 9: return bindings.chmod(path, buf.readUInt16BE(offset), writeAck(output, id))
+      case 10: return bindings.chown(path, buf.readUInt16BE(offset), buf.readUInt16BE(offset + 2), writeAck(output, id))
+      case 11: return bindings.release(path, buf.readUInt16BE(offset), writeAck(output, id))
+      case 12: return bindings.mkdir(path, buf.readUInt16BE(offset), writeAck(output, id))
+      case 13: return bindings.rmdir(path, writeAck(output, id))
+      case 14: return bindings.utimens(path, readDate(buf, offset), readDate(buf, offset + 4), writeAck(output, id))
+      case 15: return bindings.rename(path, readString(buf, offset), writeAck(output, id))
+      case 16: return bindings.symlink(path, readString(buf, offset), writeAck(output, id))
+      case 17: return bindings.readlink(path, writeLink(output, id))
+      case 18: return bindings.link(path, readString(buf, offset), writeAck(output, id))
     }
+  }
+
+  function onread (buf, path, offset, id) {
+    var fd = buf.readUInt16BE(offset)
+    var len = buf.readUInt32BE(offset + 2)
+    var pos = buf.readUInt32BE(offset + 6)
+    var result = new Buffer(10 + len) // TODO: reuse buffers
+    bindings.read(path, fd, result.slice(10), len, pos, writeRead(output, id, result))
+  }
+
+  function onwrite (buf, path, offset, id) {
+    var fd = buf.readUInt16BE(offset)
+    var pos = buf.readUInt32BE(offset + 2)
+    var writes = buf.slice(offset + 6)
+    bindings.write(path, fd, writes, writes.length, pos, writeWrite(output, id))
   }
 
   function loop () {
@@ -92,6 +67,15 @@ function rfuse (bindings) {
   return duplexify(input, output)
 }
 
+function readString (buf, offset) {
+  var strLen = buf.readUInt16BE(offset)
+  return buf.toString('utf-8', offset + 2, offset + 2 + strLen)
+}
+
+function readDate (buf, offset) {
+  return new Date(buf.readUInt32BE(offset))
+}
+
 function read (sock, num, cb) {
   var b = sock.read(num)
   if (b) return cb(b)
@@ -103,7 +87,7 @@ function read (sock, num, cb) {
 function errno (err) {
   if (!err) return 0
   if (typeof err === 'number') return err
-  return err.errno
+  return err.errno || -1
 }
 
 function alloc (err, id, len) {
@@ -112,6 +96,18 @@ function alloc (err, id, len) {
   buf.writeUInt16BE(id, 4)
   buf.writeInt32BE(errno(err), 6)
   return buf
+}
+
+function writeLink (sock, id) {
+  return function (err, link) {
+    var len = link ? Buffer.byteLength(link) : 0
+    var buf = alloc(err, id, 2 + len + 1)
+    if (err) return sock.write(buf)
+    buf.writeUInt16BE(len, 10)
+    buf.write(link, 12, 12 + len)
+    buf[12 + len] = 0
+    sock.write(buf)
+  }
 }
 
 function writeStat (sock, id) {
@@ -154,13 +150,14 @@ function writeStat (sock, id) {
 function writeDirs (sock, id) {
   return function (err, dirs) {
     var len = 0
+    var i
     if (!err) {
-      for (var i = 0; i < dirs.length; i++) len += 3 + Buffer.byteLength(dirs[i])
+      for (i = 0; i < dirs.length; i++) len += 3 + Buffer.byteLength(dirs[i])
     }
     var buf = alloc(err, id, len)
     if (err) return sock.write(buf)
     var offset = 10
-    for (var i = 0; i < dirs.length; i++) {
+    for (i = 0; i < dirs.length; i++) {
       var l = Buffer.byteLength(dirs[i])
       buf.writeUInt16BE(l, offset)
       buf.write(dirs[i], offset + 2)
@@ -193,9 +190,9 @@ function writeFd (sock, id) {
 }
 
 function writeWrite (sock, id) {
-  return function (err, len)  {
+  return function (err, len) {
     var ret = typeof err === 'number' ? err : (errno(err) || len || 0)
-    sock.write(alloc(len, id, 0))
+    sock.write(alloc(ret, id, 0))
   }
 }
 

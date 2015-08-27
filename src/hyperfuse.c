@@ -415,8 +415,9 @@ static int hyperfuse_utimens (const char *path, const struct timespec tv[2]) {
     .buffer_length = buf_len
   };
 
-  buf_offset = write_uint32(buf_offset, get_secs(tv));
-  buf_offset = write_uint32(buf_offset, get_secs(tv + 1));
+  struct timespec *tv_ptr = (struct timespec *) tv;
+  buf_offset = write_uint32(buf_offset, get_secs(tv_ptr));
+  buf_offset = write_uint32(buf_offset, get_secs(tv_ptr + 1));
   return rpc_request(&req);
 }
 

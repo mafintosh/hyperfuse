@@ -80,7 +80,7 @@ function readString (buf, offset) {
 }
 
 function readDate (buf, offset) {
-  return new Date(buf.readUInt32BE(offset))
+  return new Date(1000 * buf.readUInt32BE(offset))
 }
 
 function read (sock, num, cb) {

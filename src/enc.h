@@ -2,6 +2,7 @@
 #define _HYPERFUSE_ENC_H_
 
 #include <stdlib.h>
+#include <stdint.h>
 
 char *write_uint8 (char *buf, uint8_t val);
 char *read_uint8 (char *buf, uint8_t *val);

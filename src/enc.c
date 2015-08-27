@@ -1,4 +1,5 @@
 #include <string.h>
+#include <arpa/inet.h>
 #include "enc.h"
 
 inline char *write_uint8 (char *buf, uint8_t val) {

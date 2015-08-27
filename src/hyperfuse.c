@@ -1,5 +1,6 @@
 #ifndef __APPLE__
 #define _POSIX_C_SOURCE 199309 // to fix fuse c99 issues
+#define _GNU_SOURCE
 #endif
 #define FUSE_USE_VERSION 29
 

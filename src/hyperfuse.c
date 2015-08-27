@@ -134,7 +134,7 @@ inline static int rpc_request (rpc_t *req) {
   tmp = write_uint8(tmp, req->method);
 
   // write request
-  if (socket_write(1, req->buffer, req->buffer_length) < 0) return -1;
+  if (socket_write(rpc_fd_out, req->buffer, req->buffer_length) < 0) return -1;
 
   // read a response
   char header[10];

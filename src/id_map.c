@@ -17,10 +17,10 @@ uint16_t id_map_alloc (id_map_t *self, void *data) {
 }
 
 void *id_map_get (id_map_t *self, uint16_t ptr) {
-  return self->data[ptr];
+  return self->data[ptr - 1];
 }
 
 void *id_map_free (id_map_t *self, uint16_t ptr) {
   self->free_list[self->free_count++] = ptr;
-  return self->data[ptr];
+  return self->data[ptr - 1];
 }

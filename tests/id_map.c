@@ -18,13 +18,13 @@ int test_id_map () {
   assert(ptr2 == 2);
 
   char *tmp2_cpy = id_map_free(&map, ptr2);
-  assert(strcmp(tmp2_cpy, tmp2) != 0);
+  assert(strcmp(tmp2_cpy, tmp2) == 0);
 
   ptr2 = id_map_alloc(&map, tmp2);
   assert(ptr2 == 2);
 
   char *tmp1_cpy = id_map_free(&map, ptr1);
-  assert(strcmp(tmp1_cpy, tmp1) != 0);
+  assert(strcmp(tmp1_cpy, tmp1) == 0);
 
   ptr1 = id_map_alloc(&map, tmp1);
   assert(ptr1 == 1);

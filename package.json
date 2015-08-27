@@ -1,15 +1,18 @@
 {
-  "name": "rfuse",
-  "version": "1.0.0",
+  "name": "hyperfuse",
+  "version": "0.0.0",
   "description": "Mount a fuse drive remotely over a network or stdio",
   "main": "index.js",
   "bin": {
-    "rfuse": "./rfuse"
+    "hyperfuse": "./hyperfuse"
   },
   "scripts": {
     "install": "make",
     "test": "make test"
   },
   "author": "Mathias Buus (@mafintosh)",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "duplexify": "^3.4.2"
+  }
 }

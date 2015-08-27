@@ -1,9 +1,9 @@
 var stream = require('stream')
 var duplexify = require('duplexify')
 
-module.exports = rfuse
+module.exports = hyperfuse
 
-function rfuse (bindings) {
+function hyperfuse (bindings) {
   var input = stream.PassThrough()
   var output = stream.PassThrough()
   var remote = duplexify(input, output)

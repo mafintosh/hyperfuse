@@ -1,3 +1,6 @@
+#ifndef __APPLE__
+#define _POSIX_C_SOURCE 199309 // to fix fuse c99 issues
+#endif
 #define FUSE_USE_VERSION 29
 
 #define HYPERFUSE_INIT 0
@@ -89,11 +92,11 @@ inline static void rpc_parse_getattr (rpc_t *req, char *frame, uint32_t frame_le
   st->st_ctimespec.tv_sec = val_32;
 #else
   frame = read_uint32(frame, &val_32);
-  st->st_atim.tv_sec = val_32;
+  st->st_atime = val_32;
   frame = read_uint32(frame, &val_32);
-  st->st_mtim.tv_sec = val_32;
+  st->st_mtime = val_32;
   frame = read_uint32(frame, &val_32);
-  st->st_ctim.tv_sec = val_32;
+  st->st_ctime = val_32;
 #endif
 }
 

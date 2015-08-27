@@ -10,6 +10,8 @@ function hyperfuse (bindings) {
 
   loop()
 
+  return remote
+
   function init (mnt, cb) {
     remote.path = mnt
     remote.emit('mount', mnt)
@@ -70,8 +72,6 @@ function hyperfuse (bindings) {
       })
     })
   }
-
-  return remote
 }
 
 function readString (buf, offset) {

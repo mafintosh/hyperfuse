@@ -498,7 +498,12 @@ int main (int argc, char **argv) {
     exit(1);
   }
 
+#ifdef __APPLE__
   unmount(argv[1], 0);
+#else
+  umount(argv[1]);
+#endif
+
   mnt = realpath(argv[1], mnt);
   char *addr = argv[2];
 

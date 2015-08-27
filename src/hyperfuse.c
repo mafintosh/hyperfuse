@@ -80,12 +80,21 @@ inline static void rpc_parse_getattr (rpc_t *req, char *frame, uint32_t frame_le
   st->st_size = val_32;
   frame = read_uint32(frame, &val_32);
   st->st_blocks = val_32;
+#ifdef __APPLE__
   frame = read_uint32(frame, &val_32);
   st->st_atimespec.tv_sec = val_32;
   frame = read_uint32(frame, &val_32);
   st->st_mtimespec.tv_sec = val_32;
   frame = read_uint32(frame, &val_32);
   st->st_ctimespec.tv_sec = val_32;
+#else
+  frame = read_uint32(frame, &val_32);
+  st->st_atim.tv_sec = val_32;
+  frame = read_uint32(frame, &val_32);
+  st->st_mtim.tv_sec = val_32;
+  frame = read_uint32(frame, &val_32);
+  st->st_ctim.tv_sec = val_32;
+#endif
 }
 
 inline static void rpc_parse_readlink (rpc_t *req, char *frame, uint32_t frame_len) {

@@ -1,15 +1,8 @@
 {
   "name": "hyperfuse",
   "version": "0.0.0",
-  "description": "Mount a fuse drive remotely over a network or stdio",
+  "description": "Hyperfuse client for node",
   "main": "index.js",
-  "bin": {
-    "hyperfuse": "./hyperfuse"
-  },
-  "scripts": {
-    "install": "make",
-    "test": "make test"
-  },
   "author": "Mathias Buus (@mafintosh)",
   "license": "MIT",
   "dependencies": {

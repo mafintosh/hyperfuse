@@ -89,12 +89,14 @@ stream.on('mount', function (mnt) {
   console.error('fuse mounted on', mnt)
 })
 
-if (process.argv.length > 2) {
-  require('net').createServer(function (sock) {
-    sock.pipe(stream).pipe(sock)
-  }).listen(process.argv[2])
-} else {
-  var child = proc.spawn('./hyperfuse', ['mnt', '-'])
-  child.stdout.pipe(stream).pipe(child.stdin)
-  child.stderr.pipe(process.stderr)
-}
+proc.exec('mkdir -p mnt tmp', function () {
+  if (process.argv.length > 2) {
+    require('net').createServer(function (sock) {
+      sock.pipe(stream).pipe(sock)
+    }).listen(process.argv[2])
+  } else {
+    var child = proc.spawn('hyperfused', ['mnt', '-'])
+    child.stdout.pipe(stream).pipe(child.stdin)
+    child.stderr.pipe(process.stderr)
+  }
+})

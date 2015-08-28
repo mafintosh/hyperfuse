@@ -21,7 +21,19 @@ var METHODS = [
   'rename',
   'symlink',
   'readlink',
-  'link'
+  'link',
+  'access',
+  'statfs',
+  'fgetattr',
+  'flush',
+  'fsync',
+  'fsyncdir',
+  'ftruncate',
+  'mknod',
+  'setxattr',
+  'getxattr',
+  'opendir',
+  'releasedir'
 ]
 
 module.exports = hyperfuse
@@ -30,7 +42,7 @@ function hyperfuse (bindings) {
   var input = stream.PassThrough()
   var output = stream.PassThrough()
   var remote = duplexify(input, output)
-  var methods = bitfield(80)
+  var methods = bitfield(40)
 
   METHODS.forEach(function (m, i) {
     if (bindings[m]) methods.set(i)

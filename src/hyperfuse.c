@@ -23,6 +23,18 @@
 #define HYPERFUSE_SYMLINK 16
 #define HYPERFUSE_READLINK 17
 #define HYPERFUSE_LINK 18
+#define HYPERFUSE_ACCESS 19
+#define HYPERFUSE_STATFS 20
+#define HYPERFUSE_FGETATTR 21
+#define HYPERFUSE_FLUSH 22
+#define HYPERFUSE_FSYNC 23
+#define HYPERFUSE_FSYNCDIR 24
+#define HYPERFUSE_FTRUNCATE 25
+#define HYPERFUSE_MKNOD 26
+#define HYPERFUSE_SETXATTR 27
+#define HYPERFUSE_GETXATTR 28
+#define HYPERFUSE_OPENDIR 29
+#define HYPERFUSE_RELEASEDIR 30
 
 #define WITH_PATH(path, len) \
   uint16_t path_len = strlen(path); \
@@ -536,8 +548,8 @@ int main (int argc, char **argv) {
 
   id_map_init(&ids);
 
-  uint8_t methods[10];
-  if (socket_read(rpc_fd_in, (char *) &methods, 10) < 0) return socket_error();
+  uint8_t methods[5];
+  if (socket_read(rpc_fd_in, (char *) &methods, 5) < 0) return socket_error();
 
   struct fuse_operations ops = {
     .init = bitfield_get(methods, HYPERFUSE_INIT) ? hyperfuse_init : NULL,

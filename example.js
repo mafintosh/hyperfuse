@@ -7,6 +7,30 @@ var resolve = require('path').resolve
 var from = resolve('tmp')
 
 var stream = rfuse({
+  statfs: function (path, cb) {
+    console.error('statfs', path)
+    cb(null, {
+      bsize: 1000000,
+      frsize: 1000000,
+      blocks: 1000000,
+      bfree: 1000000,
+      bavail: 1000000,
+      files: 1000000,
+      ffree: 1000000,
+      favail: 1000000,
+      fsid: 1000000,
+      flag: 1000000,
+      namemax: 1000000
+    })
+  },
+  ftruncate: function (path, fd, size, cb) {
+    console.error('ftruncate', path, fd, size)
+    fs.ftruncate(fd, size, cb)
+  },
+  fsync: function (path, fd, datasync, cb) {
+    console.error('fsync', path, fd, datasync)
+    fs.fsync(fd, cb)
+  },
   unlink: function (path, cb) {
     console.error('unlink', path)
     fs.unlink(join(from, path), cb)
@@ -34,6 +58,10 @@ var stream = rfuse({
   readdir: function (path, cb) {
     console.error('readdir', path)
     fs.readdir(join(from, path), cb)
+  },
+  fgetattr: function (path, fd, cb) {
+    console.error('fgetattr', path, fd)
+    fs.fstat(fd, cb)
   },
   getattr: function (path, cb) {
     console.error('getattr', path)
@@ -98,5 +126,9 @@ proc.exec('mkdir -p mnt tmp', function () {
     var child = proc.spawn('hyperfused', ['mnt', '-'])
     child.stdout.pipe(stream).pipe(child.stdin)
     child.stderr.pipe(process.stderr)
+    child.on('exit', function () {
+      console.error('hyperfused exited')
+      process.exit()
+    })
   }
 })

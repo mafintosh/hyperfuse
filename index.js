@@ -89,6 +89,14 @@ function hyperfuse (bindings) {
       case 16: return bindings.symlink(path, readString(buf, offset), writeAck(output, id))
       case 17: return bindings.readlink(path, writeLink(output, id))
       case 18: return bindings.link(path, readString(buf, offset), writeAck(output, id))
+      case 19: return bindings.access(path, buf.readUInt16BE(offset), writeFd(output, id))
+      case 20: return bindings.statfs(path, writeStatfs(output, id))
+      case 21: return bindings.fgetattr(path, buf.readUInt16BE(offset), writeStat(output, id))
+      case 22: return bindings.flush(path, buf.readUInt16BE(offset), writeAck(output, id))
+      case 23: return bindings.fsync(path, buf.readUInt16BE(offset), buf.readUInt16BE(offset + 2), writeAck(output, id))
+      case 24: return bindings.fsyncdir(path, buf.readUInt16BE(offset), buf.readUInt16BE(offset + 2), writeAck(output, id))
+      case 25: return bindings.ftruncate(path, buf.readUInt16BE(offset), buf.readUInt32BE(offset + 2), writeAck(output, id))
+      case 26: return bindings.mknod(path, buf.readUInt16BE(offset), buf.readUInt32BE(offset + 2), writeAck(output, id))
     }
   }
 
@@ -146,6 +154,39 @@ function alloc (err, id, len) {
   buf.writeUInt16BE(id, 4)
   buf.writeInt32BE(errno(err), 6)
   return buf
+}
+
+function writeStatfs (sock, id) {
+  return function (err, st) {
+    var buf = alloc(err, id, 11 * 4)
+    if (err) return sock.write(buf)
+
+    var offset = 10
+    buf.writeUInt32BE(st.bsize, offset)
+    offset += 4
+    buf.writeUInt32BE(st.frsize, offset)
+    offset += 4
+    buf.writeUInt32BE(st.blocks, offset)
+    offset += 4
+    buf.writeUInt32BE(st.bfree, offset)
+    offset += 4
+    buf.writeUInt32BE(st.bavail, offset)
+    offset += 4
+    buf.writeUInt32BE(st.files, offset)
+    offset += 4
+    buf.writeUInt32BE(st.ffree, offset)
+    offset += 4
+    buf.writeUInt32BE(st.favail, offset)
+    offset += 4
+    buf.writeUInt32BE(st.fsid, offset)
+    offset += 4
+    buf.writeUInt32BE(st.flag, offset)
+    offset += 4
+    buf.writeUInt32BE(st.namemax, offset)
+    offset += 4
+
+    sock.write(buf)
+  }
 }
 
 function writeLink (sock, id) {

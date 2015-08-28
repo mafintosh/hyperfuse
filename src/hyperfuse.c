@@ -61,6 +61,12 @@ typedef struct {
   fuse_fill_dir_t filler; // for readdir
 } rpc_t;
 
+static int socket_error () {
+  fprintf(stderr, "Connection error. Exiting...\n");
+  exit(-3);
+  return -1;
+}
+
 inline static void rpc_parse_getattr (rpc_t *req, char *frame, uint32_t frame_len) {
   uint32_t val_32;
   struct stat *st = (struct stat *) req->result;
@@ -135,12 +141,12 @@ inline static int rpc_request (rpc_t *req) {
   tmp = write_uint8(tmp, req->method);
 
   // write request
-  if (socket_write(rpc_fd_out, req->buffer, req->buffer_length) < 0) return -1;
+  if (socket_write(rpc_fd_out, req->buffer, req->buffer_length) < 0) return socket_error();
 
   // read a response
   char header[10];
   tmp = (char *) &header;
-  if (socket_read(rpc_fd_in, tmp, 10) < 0) return -1;
+  if (socket_read(rpc_fd_in, tmp, 10) < 0) return socket_error();
 
   uint32_t frame_size;
   uint16_t recv_id;
@@ -159,7 +165,7 @@ inline static int rpc_request (rpc_t *req) {
   switch (req->method) {
     case HYPERFUSE_READ: {
       if (frame_size) {
-        if (socket_read(rpc_fd_in, req->result, frame_size) < 0) return -1;
+        if (socket_read(rpc_fd_in, req->result, frame_size) < 0) return socket_error();
       }
       return ret;
     }
@@ -180,7 +186,7 @@ inline static int rpc_request (rpc_t *req) {
 
   char rem[frame_size];
   tmp = (char *) &rem;
-  if (socket_read(rpc_fd_in, tmp, frame_size) < 0) return -1;
+  if (socket_read(rpc_fd_in, tmp, frame_size) < 0) return socket_error();
 
   if (ret < 0) return ret;
 
@@ -497,6 +503,12 @@ static int connect (char *addr) {
   return rpc_fd_in;
 }
 
+static int bitfield_get (uint8_t *bitfield, int index) {
+  int b = index / 8;
+  int mask = 1 << (7 - (index - b * 8));
+  return *(bitfield + b) & mask;
+}
+
 int main (int argc, char **argv) {
   if (argc < 3) {
     fprintf(stderr, "Usage: hyperfuse [mountpoint] [host:port]\n");
@@ -524,26 +536,29 @@ int main (int argc, char **argv) {
 
   id_map_init(&ids);
 
+  uint8_t methods[10];
+  if (socket_read(rpc_fd_in, (char *) &methods, 10) < 0) return socket_error();
+
   struct fuse_operations ops = {
-    .init = hyperfuse_init,
-    .readdir = hyperfuse_readdir,
-    .getattr = hyperfuse_getattr,
-    .read = hyperfuse_read,
-    .open = hyperfuse_open,
-    .truncate = hyperfuse_truncate,
-    .create = hyperfuse_create,
-    .unlink = hyperfuse_unlink,
-    .write = hyperfuse_write,
-    .chmod = hyperfuse_chmod,
-    .chown = hyperfuse_chown,
-    .release = hyperfuse_release,
-    .mkdir = hyperfuse_mkdir,
-    .rmdir = hyperfuse_rmdir,
-    .utimens = hyperfuse_utimens,
-    .rename = hyperfuse_rename,
-    .symlink = hyperfuse_symlink,
-    .readlink = hyperfuse_readlink,
-    .link = hyperfuse_link
+    .init = bitfield_get(methods, HYPERFUSE_INIT) ? hyperfuse_init : NULL,
+    .readdir = bitfield_get(methods, HYPERFUSE_READDIR) ? hyperfuse_readdir : NULL,
+    .getattr = bitfield_get(methods, HYPERFUSE_GETATTR) ? hyperfuse_getattr : NULL,
+    .read = bitfield_get(methods, HYPERFUSE_READ) ? hyperfuse_read : NULL,
+    .open = bitfield_get(methods, HYPERFUSE_OPEN) ? hyperfuse_open : NULL,
+    .truncate = bitfield_get(methods, HYPERFUSE_TRUNCATE) ? hyperfuse_truncate : NULL,
+    .create = bitfield_get(methods, HYPERFUSE_CREATE) ? hyperfuse_create : NULL,
+    .unlink = bitfield_get(methods, HYPERFUSE_UNLINK) ? hyperfuse_unlink : NULL,
+    .write = bitfield_get(methods, HYPERFUSE_WRITE) ? hyperfuse_write : NULL,
+    .chmod = bitfield_get(methods, HYPERFUSE_CHMOD) ? hyperfuse_chmod : NULL,
+    .chown = bitfield_get(methods, HYPERFUSE_CHOWN) ? hyperfuse_chown : NULL,
+    .release = bitfield_get(methods, HYPERFUSE_RELEASE) ? hyperfuse_release : NULL,
+    .mkdir = bitfield_get(methods, HYPERFUSE_MKDIR) ? hyperfuse_mkdir : NULL,
+    .rmdir = bitfield_get(methods, HYPERFUSE_RMDIR) ? hyperfuse_rmdir : NULL,
+    .utimens = bitfield_get(methods, HYPERFUSE_UTIMENS) ? hyperfuse_utimens : NULL,
+    .rename = bitfield_get(methods, HYPERFUSE_RENAME) ? hyperfuse_rename : NULL,
+    .symlink = bitfield_get(methods, HYPERFUSE_SYMLINK) ? hyperfuse_symlink : NULL,
+    .readlink = bitfield_get(methods, HYPERFUSE_READLINK) ? hyperfuse_readlink : NULL,
+    .link = bitfield_get(methods, HYPERFUSE_LINK) ? hyperfuse_link : NULL
   };
 
   struct fuse_args args = FUSE_ARGS_INIT(argc - 2, argv + 2);

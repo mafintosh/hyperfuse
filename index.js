@@ -1,5 +1,28 @@
 var stream = require('stream')
 var duplexify = require('duplexify')
+var bitfield = require('bitfield')
+
+var METHODS = [
+  'init',
+  'getattr',
+  'readdir',
+  'read',
+  'open',
+  'truncate',
+  'create',
+  'unlink',
+  'write',
+  'chmod',
+  'chown',
+  'release',
+  'mkdir',
+  'rmdir',
+  'utimens',
+  'rename',
+  'symlink',
+  'readlink',
+  'link'
+]
 
 module.exports = hyperfuse
 
@@ -7,6 +30,14 @@ function hyperfuse (bindings) {
   var input = stream.PassThrough()
   var output = stream.PassThrough()
   var remote = duplexify(input, output)
+  var methods = bitfield(80)
+
+  METHODS.forEach(function (m, i) {
+    if (bindings[m]) methods.set(i)
+  })
+
+  methods.set(0) // init is always defined
+  output.write(methods.buffer)
 
   loop()
 

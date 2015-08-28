@@ -13,6 +13,7 @@
   "author": "Mathias Buus (@mafintosh)",
   "license": "MIT",
   "dependencies": {
+    "bitfield": "^1.1.2",
     "duplexify": "^3.4.2"
   }
 }

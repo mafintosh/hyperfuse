@@ -97,7 +97,31 @@ function hyperfuse (bindings) {
       case 24: return bindings.fsyncdir(path, buf.readUInt16BE(offset), buf.readUInt16BE(offset + 2), writeAck(output, id))
       case 25: return bindings.ftruncate(path, buf.readUInt16BE(offset), buf.readUInt32BE(offset + 2), writeAck(output, id))
       case 26: return bindings.mknod(path, buf.readUInt16BE(offset), buf.readUInt32BE(offset + 2), writeAck(output, id))
+      case 27: return onsetxattr(buf, path, offset, id)
+      case 28: return ongetxattr(buf, path, offset, id)
+      case 29: return bindings.opendir(path, buf.readUInt16BE(offset), writeFd(output, id))
+      case 30: return bindings.release(path, buf.readUInt16BE(offset), writeAck(output, id))
     }
+  }
+
+  function ongetxattr (buf, path, offset, id) {
+    var name = readString(buf, offset)
+    offset += readString.bytes
+    var pos = buf.readUInt32BE(offset)
+    offset += 4
+    var data = buf.slice(offset)
+    bindings.getxattr(path, name, data, data.length, pos, writeAck(output, id))
+  }
+
+  function onsetxattr (buf, path, offset, id) {
+    var name = readString(buf, offset)
+    offset += readString.bytes
+    var flags = buf.readUInt16BE(offset)
+    offset += 2
+    var pos = buf.readUInt32BE(offset)
+    offset += 4
+    var data = buf.slice(offset)
+    bindings.setxattr(path, name, data, data.length, pos, flags, writeAck(output, id))
   }
 
   function onread (buf, path, offset, id) {
@@ -127,6 +151,7 @@ function hyperfuse (bindings) {
 
 function readString (buf, offset) {
   var strLen = buf.readUInt16BE(offset)
+  readString.bytes = strLen + 2 + 1
   return buf.toString('utf-8', offset + 2, offset + 2 + strLen)
 }
 

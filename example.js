@@ -110,6 +110,10 @@ var stream = rfuse({
   link: function (src, dst, cb) {
     console.error('link', src, dst)
     fs.link(join(from, src), join(from, dst), cb)
+  },
+  setxattr: function (path, name, val, len, pos, flags, cb) {
+    console.error('setxattr', path, name, val, pos, flags)
+    cb()
   }
 })
 

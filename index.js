@@ -58,7 +58,8 @@ function hyperfuse (bindings) {
   function init (mnt, cb) {
     remote.path = mnt
     remote.emit('mount', mnt)
-    cb()
+    if (bindings.init) bindings.init(mnt, cb)
+    else cb()
   }
 
   function onmessage (buf) {

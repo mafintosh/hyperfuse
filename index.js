@@ -1,6 +1,16 @@
 var stream = require('stream')
 var duplexify = require('duplexify')
 var bitfield = require('bitfield')
+var constants = require('constants')
+
+var HYPERFUSE_O_APPEND = 8
+var HYPERFUSE_O_CREAT = 512
+var HYPERFUSE_O_EXCL = 2048
+var HYPERFUSE_O_RDONLY = 0
+var HYPERFUSE_O_RDWR = 2
+var HYPERFUSE_O_SYNC = 128
+var HYPERFUSE_O_TRUNC = 1024
+var HYPERFUSE_O_WRONLY = 1
 
 var METHODS = [
   'init',
@@ -150,6 +160,19 @@ function hyperfuse (bindings) {
   }
 }
 
+function unmapFlags (flags) {
+  var res = 0
+  if (flags & HYPERFUSE_O_APPEND) res |= constants.O_APPEND
+  if (flags & HYPERFUSE_O_CREAT) res |= constants.O_CREAT
+  if (flags & HYPERFUSE_O_EXCL) res |= constants.O_EXCL
+  if (flags & HYPERFUSE_O_RDONLY) res |= constants.O_RDONLY
+  if (flags & HYPERFUSE_O_RDWR) res |= constants.O_RDWR
+  if (flags & HYPERFUSE_O_SYNC) res |= constants.O_SYNC
+  if (flags & HYPERFUSE_O_TRUNC) res |= constants.O_TRUNC
+  if (flags & HYPERFUSE_O_WRONLY) res |= constants.O_WRONLY
+  return res
+}
+
 function readString (buf, offset) {
   var strLen = buf.readUInt16BE(offset)
   readString.bytes = strLen + 2 + 1
@@ -288,7 +311,7 @@ function writeDirs (sock, id) {
 function writeRead (sock, id, result) {
   return function (err, len) {
     var ret = typeof err === 'number' ? err : (errno(err) || len || 0)
-    var bufLen = (ret ? ret : 0) + 10
+    var bufLen = (ret > 0 ? ret : 0) + 10
     result = result.slice(0, bufLen)
     result.writeUInt32BE(result.length - 4, 0)
     result.writeUInt16BE(id, 4)
